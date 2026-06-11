@@ -30,6 +30,28 @@ Build a single-screen Android Flappy Bird clone in Jetpack Compose. The game sho
 3. Run instrumentation tests on an emulator when a device is available.
 4. Optional polish pass:
    - Add sound effects.
-   - Persist high score with DataStore.
    - Add difficulty ramping.
    - Add custom launcher icon art.
+
+## High Score Feature Plan
+
+### Goal
+
+Remember the player's best score across retries and app restarts, and keep it visible beside the current score during every game state.
+
+### Implementation
+
+1. Define a small `HighScoreStore` contract so persistence remains separate from rendering and physics.
+2. Back the production store with Android `SharedPreferences`; a single integer does not require an additional database or serialization dependency.
+3. Load the saved value when `MainScreen` enters composition.
+4. Compare the current score with the saved best whenever the score changes.
+5. Update the HUD and persist only when the current score is greater than the previous best.
+6. Keep retry behavior unchanged: the current score resets to zero while the best score remains available.
+
+### Verification
+
+1. Use an in-memory store in Compose UI tests to verify that an existing best score is displayed.
+2. Verify that a higher score is persisted and lower scores do not replace it.
+3. Run the existing game-engine unit tests and debug build.
+4. Install the updated APK on the emulator and confirm the best-score HUD in ready, playing, and game-over states.
+5. Replace the committed screenshots and verify that the README gallery displays the updated UI.

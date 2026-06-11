@@ -16,7 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,11 +44,18 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier) {
+fun MainScreen(
+  modifier: Modifier = Modifier,
+  highScoreStore: HighScoreStore = rememberHighScoreStore(),
+) {
+  val highScoreTracker = remember(highScoreStore) { HighScoreTracker(highScoreStore) }
   var world by remember { mutableStateOf(freshWorld()) }
-  var lastFrameNanos by remember { mutableLongStateOf(0L) }
+  var highScore by remember(highScoreTracker) { mutableIntStateOf(highScoreTracker.highScore) }
 
-  LaunchedEffect(Unit) {
+  LaunchedEffect(world.phase) {
+    if (world.phase != GamePhase.Playing) return@LaunchedEffect
+
+    var lastFrameNanos = 0L
     while (isActive) {
       withFrameNanos { frameNanos ->
         if (lastFrameNanos != 0L) {
@@ -59,6 +66,10 @@ fun MainScreen(modifier: Modifier = Modifier) {
       }
       yield()
     }
+  }
+
+  LaunchedEffect(world.score) {
+    highScore = highScoreTracker.record(world.score)
   }
 
   Box(
@@ -76,6 +87,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
     GameHud(
       score = world.score,
+      highScore = highScore,
       phase = world.phase,
       modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 20.dp, vertical = 16.dp),
     )
@@ -83,12 +95,12 @@ fun MainScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun GameHud(score: Int, phase: GamePhase, modifier: Modifier = Modifier) {
+private fun GameHud(score: Int, highScore: Int, phase: GamePhase, modifier: Modifier = Modifier) {
   Box(modifier = modifier) {
-    Row(
+    Column(
       modifier = Modifier.align(Alignment.TopCenter),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
-      verticalAlignment = Alignment.CenterVertically,
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Text(
         text = "Flappy Bird",
@@ -96,14 +108,9 @@ private fun GameHud(score: Int, phase: GamePhase, modifier: Modifier = Modifier)
         fontSize = 18.sp,
         fontWeight = FontWeight.Black,
       )
-      Surface(color = Color(0xCC15313F), shape = RoundedCornerShape(8.dp)) {
-        Text(
-          text = score.toString(),
-          modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
-          color = Color.White,
-          fontSize = 22.sp,
-          fontWeight = FontWeight.Black,
-        )
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ScoreBadge(label = "SCORE", value = score)
+        ScoreBadge(label = "BEST", value = highScore)
       }
     }
 
@@ -132,6 +139,30 @@ private fun GameHud(score: Int, phase: GamePhase, modifier: Modifier = Modifier)
           )
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun ScoreBadge(label: String, value: Int) {
+  Surface(color = Color(0xCC15313F), shape = RoundedCornerShape(8.dp)) {
+    Column(
+      modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+      Text(
+        text = label,
+        color = Color(0xFFBFEFFF),
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+      )
+      Text(
+        text = value.toString(),
+        color = Color.White,
+        fontSize = 21.sp,
+        fontWeight = FontWeight.Black,
+      )
     }
   }
 }

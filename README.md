@@ -29,6 +29,7 @@ This project does not depend on external sprite assets. The bird, pipes, clouds,
 - Circle-to-rectangle pipe collision detection.
 - Ground and ceiling collision detection.
 - Score tracking when the bird passes a pipe.
+- Persistent high score that survives retries and app restarts.
 - Tap-to-retry flow after a collision.
 - Edge-to-edge Android UI.
 - Responsive Canvas coordinates based on screen size.
@@ -53,6 +54,7 @@ This project does not depend on external sprite assets. The bird, pipes, clouds,
 - Navigation 3
 - Android Gradle Plugin 9.0.1
 - Gradle 9.1.0
+- Android `SharedPreferences` for high-score persistence
 - Java toolchain 21 with Java 17 Android source compatibility
 - JUnit 4 and Compose UI Test
 
@@ -70,6 +72,15 @@ The game is split into a rendering layer and a platform-independent game engine.
 - Normalized coordinates keep physics independent from Android display density and screen resolution.
 
 Because this layer does not depend on Compose or Android APIs, its behavior can be tested with ordinary JVM tests.
+
+### High score persistence
+
+[`HighScoreStore.kt`](app/src/main/java/com/example/flappybirdclone/ui/main/HighScoreStore.kt) keeps best-score persistence separate from the game engine:
+
+- `HighScoreStore` defines the read/write contract.
+- `SharedPreferencesHighScoreStore` stores the best score across app launches.
+- `HighScoreTracker` accepts only scores that exceed the current best.
+- The Compose screen observes score changes and updates the `BEST` badge immediately.
 
 ### Rendering and input
 
@@ -93,8 +104,11 @@ FlappyBirdClone/
 |   |   |-- theme/
 |   |   `-- ui/main/
 |   |       |-- GameEngine.kt
+|   |       |-- HighScoreStore.kt
 |   |       `-- MainScreen.kt
-|   |-- src/test/.../GameEngineTest.kt
+|   |-- src/test/.../
+|   |   |-- GameEngineTest.kt
+|   |   `-- HighScoreTrackerTest.kt
 |   `-- src/androidTest/.../MainScreenTest.kt
 |-- captures/
 |   |-- flappy-ready.png
@@ -135,8 +149,6 @@ The application configuration is:
 
 4. Run the `app` configuration.
 
-The repository is private, so cloning requires access to the GitHub repository and an authenticated GitHub account.
-
 ## Command-Line Build
 
 On macOS with Android Studio's bundled JDK:
@@ -175,7 +187,7 @@ JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
   ./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-The unit tests cover starting the game, pipe movement, and one-time score increments. The instrumentation test verifies the initial ready state and the game field's accessibility description.
+The unit tests cover starting the game, pipe movement, one-time score increments, loading a saved best score, persisting a new best, and rejecting lower replacement scores. The instrumentation test verifies the initial ready state, score HUD, loaded best score, and game field accessibility description.
 
 ## Gameplay Tuning
 
