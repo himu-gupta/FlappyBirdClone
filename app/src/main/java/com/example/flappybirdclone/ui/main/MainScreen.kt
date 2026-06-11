@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -51,6 +52,7 @@ fun MainScreen(
   val highScoreTracker = remember(highScoreStore) { HighScoreTracker(highScoreStore) }
   var world by remember { mutableStateOf(freshWorld()) }
   var highScore by remember(highScoreTracker) { mutableIntStateOf(highScoreTracker.highScore) }
+  var viewportAspectRatio by remember { mutableStateOf(1f) }
 
   LaunchedEffect(world.phase) {
     if (world.phase != GamePhase.Playing) return@LaunchedEffect
@@ -60,7 +62,7 @@ fun MainScreen(
       withFrameNanos { frameNanos ->
         if (lastFrameNanos != 0L) {
           val deltaSeconds = (frameNanos - lastFrameNanos) / 1_000_000_000f
-          world = world.tick(deltaSeconds)
+          world = world.tick(deltaSeconds, viewportAspectRatio)
         }
         lastFrameNanos = frameNanos
       }
@@ -76,6 +78,9 @@ fun MainScreen(
     modifier =
       modifier
         .fillMaxSize()
+        .onSizeChanged { size ->
+          if (size.height > 0) viewportAspectRatio = size.width.toFloat() / size.height
+        }
         .background(Color(0xFF8AD7F8))
         .pointerInput(Unit) { detectTapGestures { world = world.onTap() } }
         .semantics { contentDescription = "Flappy Bird game field" }

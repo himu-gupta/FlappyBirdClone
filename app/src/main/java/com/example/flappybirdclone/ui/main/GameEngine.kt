@@ -3,6 +3,7 @@ package com.example.flappybirdclone.ui.main
 private const val BirdX = 0.28f
 private const val BirdStartY = 0.44f
 private const val BirdRadius = 0.035f
+private const val BirdHitboxScale = 0.85f
 private const val Gravity = 1.75f
 private const val FlapVelocity = -0.62f
 private const val PipeSpeed = 0.32f
@@ -41,7 +42,7 @@ fun GameWorld.onTap(): GameWorld =
     GamePhase.GameOver -> freshWorld().copy(phase = GamePhase.Playing, birdVelocity = FlapVelocity)
   }
 
-fun GameWorld.tick(deltaSeconds: Float): GameWorld {
+fun GameWorld.tick(deltaSeconds: Float, viewportAspectRatio: Float = 1f): GameWorld {
   if (phase != GamePhase.Playing) return this
 
   val dt = deltaSeconds.coerceIn(0f, MaxDeltaSeconds)
@@ -66,7 +67,7 @@ fun GameWorld.tick(deltaSeconds: Float): GameWorld {
     nextPipeId = replenishedPipes.nextPipeId,
   )
 
-  return if (next.hasCollision()) next.copy(phase = GamePhase.GameOver) else next
+  return if (next.hasCollision(viewportAspectRatio)) next.copy(phase = GamePhase.GameOver) else next
 }
 
 internal fun freshWorld(): GameWorld = GameWorld()
@@ -101,21 +102,31 @@ private fun gapCenterFor(pipeId: Int): Float {
   return 0.28f + wave * 0.34f
 }
 
-private fun GameWorld.hasCollision(): Boolean {
-  if (birdY - BirdRadius <= 0f || birdY + BirdRadius >= GroundY) return true
+private fun GameWorld.hasCollision(viewportAspectRatio: Float): Boolean {
+  val hitbox = birdHitbox(viewportAspectRatio)
+  if (birdY - hitbox.radiusY <= 0f || birdY + hitbox.radiusY >= GroundY) return true
 
   pipes.forEach { pipe ->
-    if (circleIntersectsRect(BirdX, birdY, BirdRadius, pipe.x, 0f, PipeWidth, pipe.gapCenter - PipeGap / 2f)) return true
-    if (circleIntersectsRect(BirdX, birdY, BirdRadius, pipe.x, pipe.gapCenter + PipeGap / 2f, PipeWidth, GroundY - pipe.gapCenter)) return true
+    if (ellipseIntersectsRect(BirdX, birdY, hitbox, pipe.x, 0f, PipeWidth, pipe.gapCenter - PipeGap / 2f)) return true
+    if (ellipseIntersectsRect(BirdX, birdY, hitbox, pipe.x, pipe.gapCenter + PipeGap / 2f, PipeWidth, GroundY - pipe.gapCenter)) return true
   }
 
   return false
 }
 
-private fun circleIntersectsRect(
+private data class BirdHitbox(val radiusX: Float, val radiusY: Float)
+
+private fun birdHitbox(viewportAspectRatio: Float): BirdHitbox {
+  val aspectRatio = viewportAspectRatio.coerceAtLeast(0.01f)
+  val radiusX = BirdRadius * minOf(1f, 1f / aspectRatio) * BirdHitboxScale
+  val radiusY = BirdRadius * minOf(aspectRatio, 1f) * BirdHitboxScale
+  return BirdHitbox(radiusX = radiusX, radiusY = radiusY)
+}
+
+private fun ellipseIntersectsRect(
   circleX: Float,
   circleY: Float,
-  radius: Float,
+  hitbox: BirdHitbox,
   rectX: Float,
   rectY: Float,
   rectWidth: Float,
@@ -126,5 +137,7 @@ private fun circleIntersectsRect(
   val closestY = circleY.coerceIn(rectY, rectY + rectHeight)
   val dx = circleX - closestX
   val dy = circleY - closestY
-  return dx * dx + dy * dy <= radius * radius
+  val normalizedX = dx / hitbox.radiusX
+  val normalizedY = dy / hitbox.radiusY
+  return normalizedX * normalizedX + normalizedY * normalizedY <= 1f
 }
